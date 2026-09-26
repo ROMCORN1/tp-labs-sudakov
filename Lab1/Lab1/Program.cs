@@ -76,6 +76,35 @@ namespace Lab1
             return A;
         }
 
+        static (double sum, double mathValue, int count)? TaylorExp()
+        {
+            double x;
+            Console.Write("Введите x: ");
+
+            if (!double.TryParse(Console.ReadLine(), out x))
+            {
+                Console.WriteLine("Ошибка: нужно число.");
+                return null;
+            }
+
+            const double eps = 1e-6;
+            double sum = 1.0;
+            double term = 1.0;
+            int n = 0;
+
+            while (true)
+            {
+                n++;
+                term *= x / n;
+                if (Math.Abs(term) <= eps)
+                    break;
+                sum += term;
+            }
+
+            double mathValue = Math.Exp(x);
+            return (sum, mathValue, n);
+        }
+
         static void Main(string[] args)
         {
             int numbermetod = 1;
@@ -94,6 +123,16 @@ namespace Lab1
                             break;
                         case 3:
                             Console.WriteLine($"Результат: {CalculateA()}");
+                            break;
+                        case 4:
+                            var res = TaylorExp();
+                            if (res.HasValue)
+                            {
+                                Console.WriteLine($"Сумма ряда:       {res.Value.sum:F10}");
+                                Console.WriteLine($"Math.Exp(x):      {res.Value.mathValue:F10}");
+                                Console.WriteLine($"Разница:          {Math.Abs(res.Value.sum - res.Value.mathValue):E6}");
+                                Console.WriteLine($"Членов просуммировано: {res.Value.count}");
+                            }
                             break;
                         case 0:
                             Console.WriteLine("Выход...");
