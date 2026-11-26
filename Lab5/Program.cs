@@ -27,8 +27,15 @@ namespace Lab5
                 if (!threadCounts.Contains(count)) threadCounts.Add(count);
             }
 
-            Console.WriteLine($"Диапазон: до {Limit:N0}");
-            Console.WriteLine($"Запрошено потоков: {string.Join(", ", threadCounts)}");
+            Console.WriteLine("\nПоследовательное вычисление:");
+            var sw = Stopwatch.StartNew();
+            var seq = PalindromicPrimeCalculator.FindSequential(Limit);
+            sw.Stop();
+            long seqTime = sw.ElapsedMilliseconds;
+
+            Console.WriteLine($"Количество простых палиндромов: {seq.Count}");
+            Console.WriteLine($"10 наибольших: {string.Join(", ", seq.Largest)}");
+            Console.WriteLine($"Время: {seqTime} мс");
         }
     }
 }
