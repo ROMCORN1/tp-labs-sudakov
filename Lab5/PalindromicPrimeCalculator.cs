@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Lab5
 {
     public static class PalindromicPrimeCalculator
@@ -14,6 +16,23 @@ namespace Lab5
             var largest = primes.TakeLast(10).ToArray();
             return (primes.Count, largest);
         }
+
+        public static (long Count, long[] Largest) FindParallel(long limit, int threadCount)
+        {
+            var palindromes = GeneratePalindromes(limit);
+            var primes = new ConcurrentBag<long>();
+
+            var options = new ParallelOptions { MaxDegreeOfParallelism = threadCount };
+            Parallel.ForEach(palindromes, options, p =>
+            {
+                if (IsPrime(p)) primes.Add(p);
+            });
+
+            var sorted = primes.OrderBy(x => x).ToArray();
+            var largest = sorted.TakeLast(10).ToArray();
+            return (sorted.Length, largest);
+        }
+
         public static List<long> GeneratePalindromes(long limit)
         {
             var result = new List<long>();
@@ -37,6 +56,7 @@ namespace Lab5
             }
             return result;
         }
+
         public static bool IsPrime(long n)
         {
             if (n < 2) return false;
