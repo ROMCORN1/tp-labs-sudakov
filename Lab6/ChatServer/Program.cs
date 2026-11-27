@@ -62,9 +62,14 @@ async Task HandleClientAsync(TcpClient client)
     Log($"{nick} подключился ({endpoint})");
     await BroadcastAsync($"*** {nick} вошёл в чат ***", "General");
 
+    List<string> historySnapshot;
     lock (lockObj)
     {
-        foreach (var msg in history) await writer.WriteLineAsync(msg);
+        historySnapshot = history.ToList();
+    }
+    foreach (var msg in historySnapshot)
+    {
+        await writer.WriteLineAsync(msg);
     }
 
     try
@@ -76,11 +81,12 @@ async Task HandleClientAsync(TcpClient client)
 
             if (line == "/list")
             {
+                string users;
                 lock (lockObj)
                 {
-                    var users = string.Join(", ", clients.Keys);
-                    await writer.WriteLineAsync($"*** Пользователи онлайн: {users} ***");
+                    users = string.Join(", ", clients.Keys);
                 }
+                await writer.WriteLineAsync($"*** Пользователи онлайн: {users} ***");
             }
             else if (line.StartsWith("/w "))
             {
@@ -96,15 +102,23 @@ async Task HandleClientAsync(TcpClient client)
             else if (line.StartsWith("/join "))
             {
                 string newRoom = line.Substring(6).Trim();
+                string? oldRoom = null;
+                bool roomChanged = false;
+
                 lock (lockObj)
                 {
                     if (clients.ContainsKey(nick))
                     {
-                        var oldRoom = clients[nick].Room;
+                        oldRoom = clients[nick].Room;
                         clients[nick] = clients[nick] with { Room = newRoom };
-                        BroadcastAsync($"*** {nick} перешёл в комнату {newRoom} ***", oldRoom).Wait();
-                        BroadcastAsync($"*** {nick} присоединился к комнате ***", newRoom).Wait();
+                        roomChanged = true;
                     }
+                }
+
+                if (roomChanged)
+                {
+                    await BroadcastAsync($"*** {nick} перешёл в комнату {newRoom} ***", oldRoom!);
+                    await BroadcastAsync($"*** {nick} присоединился к комнате ***", newRoom);
                 }
             }
             else
@@ -144,28 +158,25 @@ async Task HandleClientAsync(TcpClient client)
 async Task SendPrivateMessageAsync(string sender, string target, string message)
 {
     StreamWriter? targetWriter = null;
+    StreamWriter? senderWriter = null;
+
     lock (lockObj)
     {
         if (clients.ContainsKey(target)) targetWriter = clients[target].Writer;
+        if (clients.ContainsKey(sender)) senderWriter = clients[sender].Writer;
     }
 
     if (targetWriter != null)
     {
         await targetWriter.WriteLineAsync($"[{DateTime.Now:HH:mm:ss}] (ЛС) {sender}: {message}");
-        lock (lockObj)
-        {
-            if (clients.ContainsKey(sender))
-                clients[sender].Writer.WriteLineAsync($"*** Отправлено {target}: {message}").Wait();
-        }
+        if (senderWriter != null)
+            await senderWriter.WriteLineAsync($"*** Отправлено {target}: {message} ***");
         Log($"ЛС от {sender} к {target}: {message}");
     }
     else
     {
-        lock (lockObj)
-        {
-            if (clients.ContainsKey(sender))
-                clients[sender].Writer.WriteLineAsync($"*** Ошибка: пользователь {target} не найден ***").Wait();
-        }
+        if (senderWriter != null)
+            await senderWriter.WriteLineAsync($"*** Ошибка: пользователь {target} не найден ***");
     }
 }
 
